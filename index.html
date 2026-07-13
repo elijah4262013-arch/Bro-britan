@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Professional SPICE Circuit Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #28a745;
+            --error: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 15px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        header h1 {
+            color: var(--primary);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        header p {
+            color: #666;
+            font-size: 13px;
+            margin-top: 3px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 0;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 380px;
+            background: rgba(255, 255, 255, 0.97);
+            overflow-y: auto;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-section {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .sidebar-section h2 {
+            color: var(--primary);
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 2px solid #e0e0e0;
+            padding: 0 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+        
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        
+        button {
+            flex: 1;
+            padding: 10px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        button:hover {
+            background: var(--secondary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: var(--info);
+        }
+        
+        button.success {
+            background: var(--success);
+        }
+        
+        button.danger {
+            background: var(--error);
+        }
+        
+        .component-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .component-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        
+        .component-item strong {
+            color: var(--primary);
+        }
+        
+        .component-item small {
+            color: #999;
+            margin-top: 3px;
+        }
+        
+        .component-item button {
+            padding: 4px 8px;
+            background: var(--error);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            flex: none;
+            margin: 0;
+        }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .status-message.show {
+            display: block;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .demo-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .demo-buttons button {
+            background: var(--success);
+        }
+        
+        .demo-buttons button:hover {
+            background: #1e7e34;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .chart-box {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chart-box h3 {
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .chart-box canvas {
+            flex: 1;
+        }
+        
+        .results-table {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+        }
+        
+        .results-table h3 {
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state small {
+            font-size: 12px;
+            color: #bbb;
+        }
+        
+        .circuit-info {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 12px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--info);
+        }
+        
+        .circuit-info strong {
+            color: var(--primary);
+        }
+        
+        .netlist-area {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.4;
+            color: #333;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 250px;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .circuit-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-box strong {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
+        
+        .stat-box small {
+            display: block;
+            font-size: 11px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <h1>⚡ Professional SPICE Circuit Simulator</h1>
+            <p>Advanced circuit analysis with real-time simulation and visualization</p>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar: Circuit Builder -->
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <h2>🔧 Circuit Builder</h2>
+                    <div id="statusMsg" class="status-message"></div>
+                    
+                    <div class="circuit-info">
+                        <strong>Circuit ID:</strong> <span id="circuitId">Initializing...</span><br>
+                        <strong>Components:</strong> <span id="compCount">0</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Component Type</label>
+                        <select id="compType" onchange="updateComponentFields()">
+                            <option value="resistor">Resistor (Ω)</option>
+                            <option value="capacitor">Capacitor (F)</option>
+                            <option value="inductor">Inductor (H)</option>
+                            <option value="voltage_source">Voltage Source (V)</option>
+                            <option value="current_source">Current Source (A)</option>
+                            <option value="diode">Diode</option>
+                            <option value="bjt">BJT Transistor</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Component Name</label>
+                        <input type="text" id="compName" placeholder="e.g., R1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Node + (positive)</label>
+                        <input type="number" id="nodePos" value="1" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Node - (negative/ground=0)</label>
+                        <input type="number" id="nodeNeg" value="0" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Value</label>
+                        <input type="number" id="compValue" placeholder="e.g., 1000" step="any">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Frequency (Hz) - AC Sources Only</label>
+                        <input type="number" id="frequency" placeholder="e.g., 1000" step="any">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="addComponent()">➕ Add</button>
+                        <button class="danger" onclick="clearCircuit()">🗑️ Clear</button>
+                    </div>
+                    
+                    <h2 style="margin-top: 15px;">📋 Components</h2>
+                    <div id="componentList" class="component-list"></div>
+                    
+                    <div class="demo-buttons">
+                        <button class="success" onclick="loadDemo('rc')">📊 RC Filter</button>
+                        <button class="success" onclick="loadDemo('rectifier')">🔧 Rectifier</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Area: Analysis & Results -->
+            <div class="content-area">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('analysis')">⚙️ Analysis</button>
+                    <button class="tab-btn" onclick="switchTab('results')">📈 Results</button>
+                    <button class="tab-btn" onclick="switchTab('netlist')">📝 Netlist</button>
+                </div>
+                
+                <!-- Analysis Tab -->
+                <div id="analysis" class="tab-content active">
+                    <div class="form-group">
+                        <label>Analysis Type</label>
+                        <select id="analysisType">
+                            <option value="transient">Transient (Time Domain)</option>
+                            <option value="ac">AC Frequency Sweep</option>
+                            <option value="dc">DC Operating Point</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Simulation Time (seconds)</label>
+                        <input type="number" id="simTime" value="0.01" step="any" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Number of Points</label>
+                        <input type="number" id="numPoints" value="500" step="1" min="10">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="success" onclick="runSimulation()">▶️ Run Simulation</button>
+                    </div>
+                    
+                    <div id="loadingSpinner" class="loading">
+                        <div class="spinner"></div>
+                        <p>🔄 Simulating circuit...</p>
+                    </div>
+                    
+                    <div id="simResults" style="display: none; margin-top: 20px;">
+                        <div class="circuit-stats">
+                            <div class="stat-box">
+                                <strong id="statVmax">0V</strong>
+                                <small>Max Voltage</small>
+                            </div>
+                            <div class="stat-box">
+                                <strong id="statImax">0A</strong>
+                                <small>Max Current</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Tab -->
+                <div id="results" class="tab-content">
+                    <div id="chartsContainer" class="charts-grid" style="display: none;">
+                        <div class="chart-box">
+                            <h3>Voltage vs Time</h3>
+                            <canvas id="voltageChart"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <h3>Current vs Time</h3>
+                            <canvas id="currentChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div id="tableContainer" class="results-table" style="display: none;">
+                        <h3>Node Voltages & Currents</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Node</th>
+                                    <th>Voltage (V)</th>
+                                    <th>Current (A)</th>
+                                    <th>Power (W)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTable">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="emptyResults" class="empty-state">
+                        <p>📊 No results yet</p>
+                        <small>Run a simulation to see results</small>
+                    </div>
+                </div>
+                
+                <!-- Netlist Tab -->
+                <div id="netlist" class="tab-content">
+                    <label>SPICE Netlist</label>
+                    <div id="netlisted" class="netlist-area"></div>
+                    <div class="button-group" style="margin-top: 15px;">
+                        <button onclick="exportNetlist()">📥 Export Netlist</button>
+                        <button class="secondary" onclick="copyNetlist()">📋 Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:5000/api';
+        
+        // State
+        let state = {
+            circuitId: null,
+            components: [],
+            results: null,
+            charts: {}
+        };
+        
+        // Initialize
+        async function initialize() {
+            try {
+                // Create new circuit
+                const response = await axios.post(`${API_BASE}/circuit/new`, {
+                    name: 'Web Circuit'
+                });
+                
+                if (response.data.success) {
+                    state.circuitId = response.data.circuit_id;
+                    document.getElementById('circuitId').textContent = state.circuitId;
+                    showStatus('Circuit created successfully!', 'success');
+                }
+            } catch (error) {
+                showStatus('Failed to initialize: ' + error.message, 'error');
+            }
+        }
+        
+        function updateComponentFields() {
+            const type = document.getElementById('compType').value;
+            const freqField = document.getElementById('frequency').parentElement;
+            freqField.style.display = (type.includes('source')) ? 'block' : 'none';
+        }
+        
+        async function addComponent() {
+            const type = document.getElementById('compType').value;
+            const name = document.getElementById('compName').value || `${type[0].toUpperCase()}${state.components.length + 1}`;
+            const nodePos = parseInt(document.getElementById('nodePos').value) || 1;
+            const nodeNeg = parseInt(document.getElementById('nodeNeg').value) || 0;
+            const value = parseFloat(document.getElementById('compValue').value) || 1000;
+            const freq = parseFloat(document.getElementById('frequency').value) || 0;
+            
+            const component = {
+                type: type,
+                name: name,
+                parameters: {
+                    node1: nodePos,
+                    node2: nodeNeg,
+                    value: value,
+                    frequency: freq
+                }
+            };
+            
+            try {
+                const response = await axios.post(`${API_BASE}/circuit/${state.circuitId}/component`, component);
+                if (response.data.success) {
+                    state.components.push(component);
+                    updateComponentList();
+                    showStatus(`Added ${type} '${name}'`, 'success');
+                    document.getElementById('compName').value = '';
+                    document.getElementById('compValue').value = '';
+                    document.getElementById('frequency').value = '';
+                }
+            } catch (error) {
+                showStatus('Failed to add component: ' + error.message, 'error');
+            }
+        }
+        
+        function updateComponentList() {
+            const list = document.getElementById('componentList');
+            list.innerHTML = '';
+            document.getElementById('compCount').textContent = state.components.length;
+            
+            state.components.forEach((comp, idx) => {
+                const div = document.createElement('div');
+                div.className = 'component-item';
+                div.innerHTML = `
+                    <div>
+                        <strong>${comp.name}</strong> (${comp.type})
+                        <br><small>N${comp.parameters.node1}→N${comp.parameters.node2} = ${comp.parameters.value}</small>
+                    </div>
+                    <button onclick="removeComponent(${idx})">✕</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        function removeComponent(idx) {
+            state.components.splice(idx, 1);
+            updateComponentList();
+        }
+        
+        function clearCircuit() {
+            if (confirm('Clear all components?')) {
+                state.components = [];
+                updateComponentList();
+                showStatus('Circuit cleared', 'info');
+            }
+        }
+        
+        async function runSimulation() {
+            if (state.components.length === 0) {
+                showStatus('Add components first!', 'error');
+                return;
+            }
+            
+            document.getElementById('loadingSpinner').classList.add('show');
+            document.getElementById('chartsContainer').style.display = 'none';
+            document.getElementById('tableContainer').style.display = 'none';
+            
+            try {
+                const analysisType = document.getElementById('analysisType').value;
+                const simTime = parseFloat(document.getElementById('simTime').value);
+                const numPoints = parseInt(document.getElementById('numPoints').value);
+                
+                const response = await axios.post(`${API_BASE}/circuit/${state.circuitId}/simulate`, {
+                    analysis_type: analysisType,
+                    parameters: {
+                        t_stop: simTime,
+                        num_points: numPoints
+                    }
+                });
+                
+                if (response.data.success) {
+                    state.results = response.data.result;
+                    displayResults();
+                    showStatus('Simulation completed!', 'success');
+                    switchTab('results');
+                }
+            } catch (error) {
+                showStatus('Simulation failed: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loadingSpinner').classList.remove('show');
+            }
+        }
+        
+        function displayResults() {
+            if (!state.results || !state.results.data) return;
+            
+            const data = state.results.data;
+            
+            // Show charts
+            document.getElementById('chartsContainer').style.display = 'grid';
+            updateCharts(data);
+            
+            // Show table
+            document.getElementById('tableContainer').style.display = 'block';
+            document.getElementById('emptyResults').style.display = 'none';
+            updateResultsTable(data);
+            
+            // Show stats
+            document.getElementById('simResults').style.display = 'block';
+            if (data.v_node1 && data.v_node1.length > 0) {
+                const maxV = Math.max(...data.v_node1.map(Math.abs));
+                const maxI = Math.max(...(data.current || []).map(Math.abs));
+                document.getElementById('statVmax').textContent = maxV.toFixed(3) + 'V';
+                document.getElementById('statImax').textContent = (maxI * 1000).toFixed(2) + 'mA';
+            }
+        }
+        
+        function updateCharts(data) {
+            const time = data.time;
+            const v1 = data.v_node1;
+            const v2 = data.v_node2;
+            const current = data.current || [];
+            
+            // Voltage Chart
+            if (state.charts.voltage) state.charts.voltage.destroy();
+            state.charts.voltage = new Chart(document.getElementById('voltageChart'), {
+                type: 'line',
+                data: {
+                    labels: time.map((t, i) => i % 50 === 0 ? t.toFixed(6) : ''),
+                    datasets: [
+                        {
+                            label: 'V(1)',
+                            data: v1,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'V(2)',
+                            data: v2,
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: { y: { title: { display: true, text: 'Voltage (V)' } } }
+                }
+            });
+            
+            // Current Chart
+            if (state.charts.current) state.charts.current.destroy();
+            state.charts.current = new Chart(document.getElementById('currentChart'), {
+                type: 'line',
+                data: {
+                    labels: time.map((t, i) => i % 50 === 0 ? t.toFixed(6) : ''),
+                    datasets: [{
+                        label: 'Current',
+                        data: current.map(i => i * 1000),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: { y: { title: { display: true, text: 'Current (mA)' } } }
+                }
+            });
+        }
+        
+        function updateResultsTable(data) {
+            const tbody = document.getElementById('resultsTable');
+            tbody.innerHTML = '';
+            
+            for (let i = 0; i < Math.min(state.components.length, 5); i++) {
+                const row = tbody.insertRow();
+                const v = data.v_node1[Math.floor(data.v_node1.length / 2)] || 0;
+                const i_val = data.current[Math.floor(data.current.length / 2)] || 0;
+                const p = v * i_val;
+                
+                row.innerHTML = `
+                    <td>N${i}</td>
+                    <td>${v.toFixed(6)}</td>
+                    <td>${i_val.toFixed(9)}</td>
+                    <td>${p.toFixed(6)}</td>
+                `;
+            }
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+        }
+        
+        function loadDemo(demo) {
+            state.components = [];
+            
+            if (demo === 'rc') {
+                state.components = [
+                    { type: 'voltage_source', name: 'V1', parameters: { node1: 1, node2: 0, value: 5, frequency: 1000 } },
+                    { type: 'resistor', name: 'R1', parameters: { node1: 1, node2: 2, value: 1000 } },
+                    { type: 'capacitor', name: 'C1', parameters: { node1: 2, node2: 0, value: 1e-7 } }
+                ];
+            } else if (demo === 'rectifier') {
+                state.components = [
+                    { type: 'voltage_source', name: 'V1', parameters: { node1: 1, node2: 0, value: 10, frequency: 60 } },
+                    { type: 'diode', name: 'D1', parameters: { node1: 1, node2: 2 } },
+                    { type: 'capacitor', name: 'C1', parameters: { node1: 2, node2: 0, value: 1e-4 } },
+                    { type: 'resistor', name: 'R1', parameters: { node1: 2, node2: 0, value: 1000 } }
+                ];
+            }
+            
+            updateComponentList();
+            showStatus('Demo circuit loaded!', 'success');
+        }
+        
+        function generateNetlist() {
+            let netlist = '* SPICE Netlist - Generated from Circuit Simulator\n';
+            netlist += `* Circuit: ${state.circuitId}\n`;
+            netlist += `* Date: ${new Date().toISOString()}\n\n`;
+            
+            state.components.forEach(comp => {
+                const p = comp.parameters;
+                if (comp.type === 'resistor') {
+                    netlist += `${comp.name} ${p.node1} ${p.node2} ${p.value}\n`;
+                } else if (comp.type === 'capacitor') {
+                    netlist += `${comp.name} ${p.node1} ${p.node2} ${p.value}\n`;
+                } else if (comp.type === 'inductor') {
+                    netlist += `${comp.name} ${p.node1} ${p.node2} ${p.value}\n`;
+                } else if (comp.type === 'voltage_source') {
+                    netlist += `${comp.name} ${p.node1} ${p.node2} DC ${p.value}\n`;
+                }
+            });
+            
+            netlist += '\n.end\n';
+            return netlist;
+        }
+        
+        function exportNetlist() {
+            const netlist = generateNetlist();
+            const blob = new Blob([netlist], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `circuit_${state.circuitId}.cir`;
+            a.click();
+        }
+        
+        function copyNetlist() {
+            const netlist = generateNetlist();
+            navigator.clipboard.writeText(netlist);
+            showStatus('Netlist copied to clipboard!', 'success');
+        }
+        
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.textContent = msg;
+            el.className = `status-message ${type} show`;
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
+        
+        // Update netlist display
+        setInterval(() => {
+            if (document.getElementById('netlist').classList.contains('active')) {
+                document.getElementById('netlisted').textContent = generateNetlist();
+            }
+        }, 500);
+        
+        // Initialize on load
+        window.addEventListener('load', initialize);
+        updateComponentFields();
+    </script>
+</body>
+</html>
