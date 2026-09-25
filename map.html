@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Map - Compromise Projection</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/topojson.v3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-bottom: 3px solid #667eea;
+            text-align: center;
+        }
+        
+        header h1 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+        
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        select:focus, button:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-1px);
+        }
+        
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .projection-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            max-width: 350px;
+            font-size: 13px;
+        }
+        
+        .projection-info h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .projection-info p {
+            color: #666;
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        .projection-info strong {
+            color: #333;
+        }
+        
+        .graticule {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 0.5px;
+            stroke-opacity: 0.5;
+        }
+        
+        .country {
+            fill: #a7c5bd;
+            stroke: #fff;
+            stroke-width: 0.5px;
+            transition: fill 0.3s;
+        }
+        
+        .country:hover {
+            fill: #667eea;
+        }
+        
+        .country-boundary {
+            fill: none;
+            stroke: #666;
+            stroke-width: 0.3px;
+        }
+        
+        .land {
+            fill: #b8d4c7;
+            stroke: #fff;
+            stroke-width: 0.5px;
+        }
+        
+        .water {
+            fill: #4a90a4;
+        }
+        
+        .sphere {
+            fill: #4a90a4;
+            stroke: none;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .scale-bar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🗺️ World Map - Compromise Projection</h1>
+        <p>Interactive map visualization using compromise map projections</p>
+    </header>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>Projection:</label>
+            <select id="projectionSelect" onchange="changeProjection()">
+                <option value="robinson">Robinson</option>
+                <option value="winkel3">Winkel Tripel</option>
+                <option value="miller">Miller Cylindrical</option>
+                <option value="eckert4">Eckert IV</option>
+                <option value="equidistantConic">Equidistant Conic</option>
+                <option value="naturalEarth">Natural Earth</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Color:</label>
+            <select id="colorScheme" onchange="changeColorScheme()">
+                <option value="default">Default (Green/Blue)</option>
+                <option value="political">Political</option>
+                <option value="satellite">Satellite</option>
+                <option value="dark">Dark Mode</option>
+                <option value="pastel">Pastel</option>
+            </select>
+        </div>
+        
+        <button onclick="resetView()">↻ Reset View</button>
+        <button onclick="toggleGraticule()">Grid: ON</button>
+    </div>
+    
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading world data...</p>
+        </div>
+        <div class="scale-bar" id="scaleBar"></div>
+        <div class="projection-info" id="projectionInfo">
+            <h3>📍 Projection Info</h3>
+            <p><strong>Type:</strong> <span id="projType">Robinson</span></p>
+            <p><strong>Category:</strong> <span id="projCategory">Compromise</span></p>
+            <p><strong>Properties:</strong> <span id="projProperties">Balanced area, shape, and distance</span></p>
+        </div>
+    </div>
+    
+    <script>
+        // Map configuration
+        let width = 0;
+        let height = 0;
+        let svg = null;
+        let g = null;
+        let projection = null;
+        let path = null;
+        let worldData = null;
+        let graticule = null;
+        let showGraticule = true;
+        
+        // Color schemes
+        const colorSchemes = {
+            default: {
+                land: '#a7c5bd',
+                water: '#4a90a4',
+                country: '#b8d4c7',
+                boundary: '#666',
+                text: '#333'
+            },
+            political: {
+                land: '#f5f5f5',
+                water: '#e6f3ff',
+                country: '#d4e6ec',
+                boundary: '#333',
+                text: '#000'
+            },
+            satellite: {
+                land: '#8b7d6b',
+                water: '#5d8aa8',
+                country: '#a0937d',
+                boundary: '#555',
+                text: '#fff'
+            },
+            dark: {
+                land: '#2d3748',
+                water: '#1a202c',
+                country: '#4a5568',
+                boundary: '#718096',
+                text: '#e2e8f0'
+            },
+            pastel: {
+                land: '#f0e6ff',
+                water: '#e6f7ff',
+                country: '#e0f0ff',
+                boundary: '#b3d9ff',
+                text: '#4d4d4d'
+            }
+        };
+        
+        // Projection information
+        const projectionInfo = {
+            robinson: {
+                name: 'Robinson',
+                category: 'Compromise',
+                properties: 'Balanced area, shape, and distance. Visually appealing for world maps.'
+            },
+            winkel3: {
+                name: 'Winkel Tripel',
+                category: 'Compromise',
+                properties: 'Minimizes distortion of area, direction, and distance. Used by National Geographic.'
+            },
+            miller: {
+                name: 'Miller Cylindrical',
+                category: 'Compromise',
+                properties: 'Modified Mercator. Straight meridians, reduced latitude spacing.'
+            },
+            eckert4: {
+                name: 'Eckert IV',
+                category: 'Compromise',
+                properties: 'Equal-area pseudocylindrical. Balanced shape and area.'
+            },
+            equidistantConic: {
+                name: 'Equidistant Conic',
+                category: 'Conic',
+                properties: 'Preserves distances along meridians. Good for mid-latitude regions.'
+            },
+            naturalEarth: {
+                name: 'Natural Earth',
+                category: 'Compromise',
+                properties: 'Visually pleasing. Shows continents at true size relative to each other.'
+            }
+        };
+        
+        // Initialize the map
+        async function init() {
+            // Get container dimensions
+            const container = d3.select('#map-container');
+            width = container.node().getBoundingClientRect().width;
+            height = container.node().getBoundingClientRect().height;
+            
+            // Create SVG
+            svg = d3.select('#map')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            g = svg.append('g');
+            
+            // Set default projection (Robinson)
+            changeProjection();
+            
+            // Load world data
+            await loadWorldData();
+            
+            // Setup zoom and pan
+            setupZoom();
+            
+            // Hide loading
+            d3.select('#loading').style('display', 'none');
+            
+            // Update scale bar
+            updateScaleBar();
+        }
+        
+        // Load world geography data
+        async function loadWorldData() {
+            try {
+                // Use D3's built-in world data
+                worldData = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+                drawMap();
+            } catch (error) {
+                console.error('Error loading world data:', error);
+                // Fallback to simpler data
+                worldData = { type: 'FeatureCollection', features: [] };
+                drawMap();
+            }
+        }
+        
+        // Draw the map
+        function drawMap() {
+            if (!worldData || !projection) return;
+            
+            // Clear previous map
+            g.selectAll('*').remove();
+            
+            // Draw graticule (latitude/longitude lines)
+            if (showGraticule) {
+                graticule = d3.geoGraticule();
+                g.append('path')
+                    .datum(graticule)
+                    .attr('class', 'graticule')
+                    .attr('d', path);
+            }
+            
+            // Draw sphere (background)
+            g.append('path')
+                .datum({ type: 'Sphere' })
+                .attr('class', 'sphere')
+                .attr('d', path);
+            
+            // Draw countries
+            const countries = g.selectAll('.country')
+                .data(worldData.features)
+                .enter().append('path')
+                .attr('class', 'country')
+                .attr('d', path)
+                .on('mouseover', function() {
+                    d3.select(this).style('fill', getHighlightColor());
+                })
+                .on('mouseout', function() {
+                    const scheme = d3.select('#colorScheme').node().value;
+                    d3.select(this).style('fill', colorSchemes[scheme].country);
+                });
+            
+            // Draw country boundaries
+            g.append('path')
+                .datum(topojson.mesh(worldData))
+                .attr('class', 'country-boundary')
+                .attr('d', path);
+        }
+        
+        // Change projection
+        function changeProjection() {
+            const projName = d3.select('#projectionSelect').node().value;
+            
+            // Destroy old projection
+            if (g) {
+                g.selectAll('*').remove();
+            }
+            
+            // Create new projection based on selection
+            switch (projName) {
+                case 'robinson':
+                    projection = d3.geoRobinson()
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+                    
+                case 'winkel3':
+                    projection = d3.geoWinkel3()
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+                    
+                case 'miller':
+                    projection = d3.geoMiller()
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+                    
+                case 'eckert4':
+                    projection = d3.geoEckert4()
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+                    
+                case 'equidistantConic':
+                    projection = d3.geoConicEquidistant()
+                        .parallels([30, 50])
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+                    
+                case 'naturalEarth':
+                    projection = d3.geoNaturalEarth1()
+                        .scale(width / 6.5)
+                        .translate([width / 2, height / 2]);
+                    break;
+            }
+            
+            // Create path generator
+            path = d3.geoPath().projection(projection);
+            
+            // Update projection info
+            updateProjectionInfo(projName);
+            
+            // Redraw map
+            if (worldData) {
+                drawMap();
+                updateScaleBar();
+            }
+        }
+        
+        // Update projection info display
+        function updateProjectionInfo(projName) {
+            const info = projectionInfo[projName];
+            d3.select('#projType').text(info.name);
+            d3.select('#projCategory').text(info.category);
+            d3.select('#projProperties').text(info.properties);
+        }
+        
+        // Change color scheme
+        function changeColorScheme() {
+            const scheme = d3.select('#colorScheme').node().value;
+            const colors = colorSchemes[scheme];
+            
+            // Update CSS variables
+            d3.select('body').style('background', `linear-gradient(135deg, ${colors.land} 0%, ${d3.color(colors.land).darker(1)} 100%)`);
+            
+            // Update map colors
+            d3.selectAll('.country')
+                .style('fill', colors.country)
+                .style('stroke', colors.boundary);
+            
+            d3.selectAll('.sphere, .water')
+                .style('fill', colors.water);
+            
+            d3.selectAll('.country-boundary')
+                .style('stroke', colors.boundary);
+            
+            // Update text colors
+            d3.selectAll('header, .controls, .projection-info, .scale-bar')
+                .style('color', colors.text);
+            
+            // Update control backgrounds
+            d3.selectAll('.controls, .projection-info, .scale-bar')
+                .style('background', 'rgba(255, 255, 255, 0.95)');
+        }
+        
+        // Get highlight color based on current scheme
+        function getHighlightColor() {
+            const scheme = d3.select('#colorScheme').node().value;
+            const colors = colorSchemes[scheme];
+            return d3.color(colors.country).brighter(1.5).toString();
+        }
+        
+        // Setup zoom and pan
+        function setupZoom() {
+            const zoom = d3.zoom()
+                .scaleExtent([1, 8])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                    updateScaleBar();
+                });
+            
+            svg.call(zoom);
+        }
+        
+        // Reset view
+        function resetView() {
+            svg.transition()
+                .duration(750)
+                .call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity,
+                    d3.zoomTransform(svg.node()).invert([width / 2, height / 2])
+                );
+        }
+        
+        // Toggle graticule
+        function toggleGraticule() {
+            showGraticule = !showGraticule;
+            const button = d3.select('button[onclick="toggleGraticule()"]');
+            button.text(`Grid: ${showGraticule ? 'ON' : 'OFF'}`);
+            
+            if (worldData) {
+                drawMap();
+            }
+        }
+        
+        // Update scale bar
+        function updateScaleBar() {
+            if (!projection) return;
+            
+            const transform = d3.zoomTransform(svg.node());
+            const scale = transform.k;
+            
+            // Calculate approximate scale in km per pixel
+            // This is an approximation based on the projection
+            const center = projection.invert([width / 2, height / 2]);
+            const point1 = projection([center[0] + 1, center[1]]);
+            const point2 = projection([center[0] - 1, center[1]]);
+            const pixelsPerDegree = Math.abs(point1[0] - point2[0]);
+            const kmPerDegree = 111.32; // Approximate km per degree at equator
+            const kmPerPixel = (kmPerDegree / pixelsPerDegree) / scale;
+            
+            // Calculate a nice round number for the scale bar
+            const scaleLength = Math.pow(10, Math.floor(Math.log10(kmPerPixel * 100)));
+            const barLength = (scaleLength / kmPerPixel) * scale;
+            
+            const scaleBar = d3.select('#scaleBar');
+            scaleBar.html(`<div style="display: inline-block; width: ${Math.min(barLength, 150)}px; height: 4px; background: #667eea; margin-right: 5px; vertical-align: middle;"></div>${Math.round(scaleLength)} km`);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const container = d3.select('#map-container');
+            width = container.node().getBoundingClientRect().width;
+            height = container.node().getBoundingClientRect().height;
+            
+            d3.select('#map svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            changeProjection();
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
